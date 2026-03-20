@@ -1,0 +1,416 @@
+ 
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum CsvAssetStatus {
+  UPLOADED
+  VALIDATED
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum JobType {
+  CSV
+  API
+}
+
+enum JobMode {
+  SCHEDULED
+  INSTANT
+  PRIORITY
+}
+
+enum ScheduleType {
+  CRON
+  ONE_TIME
+}
+
+enum RunType {
+  SCHEDULED
+  MANUAL
+  RETRY
+}
+
+enum JobRunStatus {
+  QUEUED
+  FETCH_STARTED
+  COMPLETED
+  FAILED
+  FETCH_COMPLETED
+  CANONICAL_TRANSFORM
+}
+
+
+enum RunPhaseStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  PARTIAL_SUCCESS
+}
+
+enum StagingChunkStatus {
+  QUEUED
+  FETCHING
+  FETCHED
+  TRANSFORMING
+  TRANSFORMED
+  PUBLISHING
+  COMPLETED
+  PARTIAL_SUCCESS
+  FAILED
+  RETRYING
+  SKIPPED
+}
+
+enum IngestionJobStatus {
+  ACTIVE
+  COMPLETED
+  DEACTIVATED
+}
+
+enum IngestionWorkerStatus {
+  IN_PROCESS
+  SUCCESS
+  FAILED
+}
+
+enum IngestionServiceStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum IngestionOverallStatus {
+  IN_PROCESS
+  SUCCESS
+  FAILED
+}
+
+enum IngestionOperationType {
+  ADD
+  UPDATE
+}
+
+//  tbl_tenant_data_source
+
+model TenantDataSource {
+  id               String   @id @default(uuid()) 
+  tenantId         String   @map("tenant_id")
+  domain           String
+  
+  apiEndpoint      String?  @map("api_endpoint")
+  httpMethod       String?  @map("http_method")
+  headers          Json?
+  authConfig       Json?    @map("auth_config")
+  payloadTemplate  Json?    @map("payload_template")
+
+  paginationType   String?  @map("pagination_type")
+  paginationConfig Json?    @map("pagination_config")
+
+  chunkSize        Int      @default(100) @map("chunk_size")
+  rateLimitPerMin  Int?     @map("rate_limit_per_min")
+  enabled          Boolean  @default(true)
+
+  jobs             IngestionJob[]
+
+  createdAt        DateTime? @map("created_at")
+  updatedAt        DateTime? @map("updated_at")
+
+  @@map("tbl_tenant_data_source")
+}
+
+// tbl_tenant_csv_assets
+
+model TenantCsvAsset {
+  id                String   @id @default(uuid()) 
+  tenantId          String   @map("tenant_id")
+  fileUuid          String   @map("file_uuid")
+  originalFileName  String?  @map("original_file_name")
+  containerName     String   @map("container_name")
+
+  fileSizeBytes     BigInt?  @map("file_size_bytes")
+  checksumSha256    String?  @map("checksum_sha256")
+
+  csvMappingId      String?   @map("csv_mapping_id")
+  csvMapping        CsvMapping? @relation(fields: [csvMappingId], references: [id])
+
+  status            CsvAssetStatus?
+
+  uploadedAt        DateTime? @map("uploaded_at")
+  processedAt       DateTime? @map("processed_at")
+  createdAt         DateTime? @map("created_at")
+  updatedAt         DateTime? @map("updated_at")
+
+  jobs              IngestionJob[]
+
+  @@map("tbl_tenant_csv_assets")
+}
+
+// tbl_csv_mappings
+
+model CsvMapping {
+  id         String   @id @default(uuid()) 
+  tenantId   String   @map("tenant_id")
+  domain     String
+  isActive   Boolean  @default(true) @map("is_active")
+
+  columns    CsvMappingColumn[]
+  assets     TenantCsvAsset[]
+
+  createdAt  DateTime? @map("created_at")
+  updatedAt  DateTime? @map("updated_at")
+
+  @@map("tbl_csv_mappings")
+}
+
+model CsvMappingColumn {
+  id            String   @id @default(uuid()) 
+  csvMappingId  String    @map("csv_mapping_id")
+
+  csvColumnName String   @map("csv_column_name")
+  canonicalField String   @map("canonical_field")
+  dataType      String?  @map("data_type")
+  isRequired    Boolean  @default(true) @map("is_required")
+
+  mapping       CsvMapping @relation(fields: [csvMappingId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime? @map("created_at")
+
+  @@map("tbl_csv_mapping_columns")
+}
+
+
+// tbl_data_mappings 
+
+model DataMapping {
+  id        String   @id @default(uuid()) 
+  tenantId  String   @map("tenant_id")
+  domain    String
+  isActive  Boolean  @default(true) @map("is_active")
+
+  fields    DataMappingField[]
+
+  createdAt DateTime? @map("created_at")
+  updatedAt DateTime? @map("updated_at")
+
+  @@map("tbl_data_mappings")
+}
+
+model DataMappingField {
+  id             String   @id @default(uuid()) 
+  dataMappingId  String    @map("data_mapping_id")
+
+  sourceField    String   @map("source_field")
+  canonicalField String   @map("canonical_field")
+  transformRule  String?  @map("transform_rule")
+  isRequired     Boolean  @default(true) @map("is_required")
+
+  mapping        DataMapping @relation(fields: [dataMappingId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime? @map("created_at")
+
+  @@map("tbl_data_mapping_fields")
+}
+
+// tbl_ingestion_jobs
+
+model IngestionJob {
+  id              String   @id @default(uuid()) 
+  tenantId        String   @map("tenant_id")
+
+  dataSourceId    String?    @map("data_source_id")
+  dataSource      TenantDataSource? @relation(fields: [dataSourceId], references: [id])
+
+  csvAssetId      String?   @map("csv_asset_id")
+  csvAsset        TenantCsvAsset? @relation(fields: [csvAssetId], references: [id])
+
+  jobType         JobType @map("job_type")
+  jobMode         JobMode? @map("job_mode")
+  scheduleType    ScheduleType? @map("schedule_type")
+
+  cronExpression  String?  @map("cron_expression")
+  scheduledAt     DateTime? @map("scheduled_at")
+
+  isActive        Boolean  @default(true) @map("is_active")
+  status          IngestionJobStatus @default(ACTIVE) @map("status")
+  createdBy       String?  @map("created_by")
+
+  runs            IngestionJobRun[]
+
+  createdAt       DateTime? @map("created_at")
+  updatedAt       DateTime? @map("updated_at")
+
+  @@map("tbl_ingestion_jobs")
+}
+
+// tbl_ingestion_job_runs
+
+ model IngestionJobRun {
+  id               String   @id @default(uuid())
+  jobId            String   @map("job_id")
+
+  runType          RunType?      @map("run_type")
+  status           JobRunStatus? @map("status") @default(QUEUED)
+
+  //  phase timestamps
+  fetchStartedAt   DateTime? @map("fetch_started_at")
+  fetchFinishedAt  DateTime? @map("fetch_finished_at")
+  syncStartedAt    DateTime? @map("sync_started_at")
+  syncFinishedAt   DateTime? @map("sync_finished_at")
+
+  // Existing timing fields
+  startedAt        DateTime? @map("started_at")
+  finishedAt       DateTime? @map("finished_at")
+
+  // Existing counters
+  totalRecords     Int?     @map("total_records")
+  processedRecords Int?     @map("processed_records")
+  failedRecords    Int?     @map("failed_records")
+
+  errorMessage     String?  @map("error_message")
+
+  //  chunk planning/progress
+  expectedChunks   Int?     @map("expected_chunks")
+  fetchedChunks    Int?     @map("fetched_chunks")
+  syncedChunks     Int?     @map("synced_chunks")
+
+ job              IngestionJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+ chunks           IngestionJobRunChunk[]
+ products         IngestionJobRunProduct[]
+
+  createdAt        DateTime? @map("created_at")
+
+  @@index([jobId], map: "idx_job_run_job_id")
+ @@map("tbl_ingestion_job_runs")
+}
+
+// tbl_ingestion_job_run_product
+
+model IngestionJobRunProduct {
+  id             String   @id @db.VarChar(255)
+
+  jobRunId       String   @map("job_run_id")
+
+  // Identification
+  jobId          String?  @map("job_id")
+  productId      String?  @map("product_id")
+
+  // Searchable fields
+  productSku     String?  @map("product_sku")
+  productName    String?  @map("product_name")
+
+  // Operation type (ADD / UPDATE)
+  operationType  IngestionOperationType?  @map("operation_type")
+
+  // Raw payload (for debugging only)
+  productDetails Json?    @map("product_details")
+
+  // Worker Level
+  workerStatus   IngestionWorkerStatus? @default(IN_PROCESS) @map("worker_status")
+  workerError    String?  @map("worker_error")
+
+  // Service 1 Status
+  service1Status IngestionServiceStatus? @default(PENDING) @map("service1_status")
+  service1Error  String?  @map("service1_error")
+
+  // Service 2 Status
+  service2Status IngestionServiceStatus? @default(PENDING) @map("service2_status")
+  service2Error  String?  @map("service2_error")
+
+  // Final Status (business level)
+  overallStatus  IngestionOverallStatus? @map("overall_status")
+
+  // Metadata
+  createdAt      DateTime? @map("created_at")
+  updatedAt      DateTime? @map("updated_at")
+
+  jobRun         IngestionJobRun @relation(fields: [jobRunId], references: [id], onDelete: Cascade)
+
+  @@index([productSku], map: "idx_sku")
+  @@index([productName], map: "idx_name")
+  @@map("tbl_ingestion_job_run_product")
+}
+
+ model IngestionJobRunChunk {
+  id               String   @id @default(uuid())
+  jobRunId         String   @map("job_run_id")
+
+  chunkIndex       Int?     @map("chunk_index")
+
+  // CHANGED: from JobRunStatus -> StagingChunkStatus (detailed pipeline state)
+  status           StagingChunkStatus? @map("status")
+
+  // NEW: API pagination context
+  cursor           String?
+  pageNumber       Int?     @map("page_number")
+
+  // NEW: CSV row-range context
+  startRow         Int?     @map("start_row")
+  endRow           Int?     @map("end_row")
+
+  // NEW: raw storage pointers
+  blobUrl          String?  @map("blob_url")
+  rawPayload       Json?    @map("raw_payload") // use only for small chunks
+
+  // Existing + expanded metrics
+  recordsInChunk     Int?    @map("records_in_chunk")
+  processedRecords   Int?    @map("processed_records")
+  transformedRecords Int?    @map("transformed_records")
+  publishedRecords   Int?    @map("published_records")
+  failedRecords      Int?    @map("failed_records")
+
+  // Error summary
+  errorMessage      String?  @map("error_message")
+  errorDetails      Json?    @map("error_details")
+
+  // Timing
+  queuedAt          DateTime? @map("queued_at")
+  fetchedAt         DateTime? @map("fetched_at")
+  transformStartedAt DateTime? @map("transform_started_at")
+  transformedAt     DateTime? @map("transformed_at")
+  publishStartedAt  DateTime? @map("publish_started_at")
+
+  startedAt         DateTime? @map("started_at")
+  finishedAt        DateTime? @map("finished_at")
+
+  // Relations
+  jobRun           IngestionJobRun @relation(fields: [jobRunId], references: [id], onDelete: Cascade)
+  errors           IngestionJobRunChunkError[]
+
+  @@index([jobRunId], map: "idx_chunk_job_run_id")
+  @@index([status], map: "idx_chunk_status")
+  @@index([jobRunId, chunkIndex], map: "idx_chunk_run_index")
+  @@map("tbl_ingestion_job_run_chunks")
+}
+
+//  tbl_ingestion_job_run_chunk_errors 
+
+model IngestionJobRunChunkError {
+  id            String   @id @default(uuid())
+  chunkId       String   @map("chunk_id")
+
+  // Identify failed item
+  externalId    String?  @map("external_id") // API record id / SKU / etc.
+  rowNumber     Int?     @map("row_number")  // CSV row number
+
+  stage         String?  // "FETCH" | "TRANSFORM" | "PUBLISH"
+  errorMessage  String   @map("error_message")
+  errorDetails  Json?    @map("error_details")
+
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  chunk         IngestionJobRunChunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+
+  @@index([chunkId], map: "idx_chunk_error_chunk_id")
+  @@map("tbl_ingestion_job_run_chunk_errors")
+}
+
