@@ -46,7 +46,7 @@ enum JobRunStatus {
   FAILED
   FETCH_COMPLETED
   CANONICAL_TRANSFORM
-  PARTIAL_COMPLETED
+  PARTIAL_COMPLETED  // For cases where some records succeeded and others failed
 }
 
 
