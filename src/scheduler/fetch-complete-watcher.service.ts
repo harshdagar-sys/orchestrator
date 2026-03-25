@@ -19,7 +19,7 @@ export class FetchCompleteWatcherService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(TRANSFORM_QUEUE) private readonly transformQueue: Queue,
-    private readonly logger : AppLogger
+    private readonly logger: AppLogger,
   ) {}
 
   /**
@@ -42,7 +42,10 @@ export class FetchCompleteWatcherService {
           },
         },
       });
-      this.logger.debug(`Completed fetches loaded: count=${completedFetches.length}` , this.ctx);
+      this.logger.debug(
+        `Completed fetches loaded: count=${completedFetches.length}`,
+        this.ctx,
+      );
 
       if (completedFetches.length === 0) {
         this.logger.debug('No completed fetches to process', this.ctx);
@@ -51,7 +54,7 @@ export class FetchCompleteWatcherService {
 
       this.logger.log(
         `Found ${completedFetches.length} completed fetch(es) to enqueue`,
-        this.ctx
+        this.ctx,
       );
 
       let enqueued = 0;
@@ -73,13 +76,13 @@ export class FetchCompleteWatcherService {
 
           // Update sync_status to QUEUED to mark it as being processed ----Done in transform worker
           // Update status to CANONICAL_TRANSFORM to mark it as being processed ----Done in transform worker
-        //   await this.prisma.ingestionJobRun.update({
-        //     where: { id: item.id },
-        //     data: {
-        //       status: 'CANONICAL_TRANSFORM',
-        //       syncStartedAt: new Date(),
-        //     },
-        //   });
+          //   await this.prisma.ingestionJobRun.update({
+          //     where: { id: item.id },
+          //     data: {
+          //       status: 'CANONICAL_TRANSFORM',
+          //       syncStartedAt: new Date(),
+          //     },
+          //   });
 
           enqueued++;
           results.push({
@@ -89,14 +92,14 @@ export class FetchCompleteWatcherService {
 
           this.logger.debug(
             `Enqueued job run ${item.id} to transform queue`,
-              this.ctx
+            this.ctx,
           );
         } catch (err: any) {
           const message = err instanceof Error ? err.message : String(err);
           this.logger.error(
             `Failed to enqueue job run ${item.id}: ${message}`,
             err?.stack,
-            this.ctx
+            this.ctx,
           );
 
           results.push({
@@ -117,7 +120,7 @@ export class FetchCompleteWatcherService {
       this.logger.error(
         `Error while watching for completed fetches: ${message}`,
         err?.stack,
-        this.ctx
+        this.ctx,
       );
       throw err;
     }

@@ -2,7 +2,7 @@
 import { PrismaService } from '../common/primsa/prisma.service';
 import { ListIngestionJobRunsQuery } from './dto/list-ingestion-job-runs.query';
 import { ListIngestionJobRunProductsQuery } from './dto/list-ingestion-job-run-products.query';
-import { IngestionOverallStatus, Prisma } from '@prisma/client';
+import { IngestionOverallStatus, Prisma, JobRunStatus } from '@prisma/client';
 
 @Injectable()
 export class IngestionJobRunsService {
@@ -24,17 +24,13 @@ export class IngestionJobRunsService {
 
     const statusNormalized = q.status ? q.status.toUpperCase() : undefined;
 
-    const whereAny: any = {
+    const where: Prisma.IngestionJobRunWhereInput = {
       ...(tenantId ? { job: { tenantId } } : {}),
       ...(q.jobId ? { jobId: q.jobId } : {}),
+      ...(statusNormalized && allowedStatuses.includes(statusNormalized)
+        ? { status: statusNormalized as JobRunStatus }
+        : {}),
     };
-
-    if (statusNormalized && allowedStatuses.includes(statusNormalized)) {
-      whereAny.status = statusNormalized;
-    }
-
-    const where: Prisma.IngestionJobRunWhereInput = whereAny;
-
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.ingestionJobRun.findMany({
@@ -72,11 +68,7 @@ export class IngestionJobRunsService {
     const overallStatusNormalized = overallStatusRaw
       ? overallStatusRaw.toUpperCase()
       : undefined;
-    const allowedOverallStatuses = [
-      'IN_PROCESS',
-      'SUCCESS',
-      'FAILED',
-    ] as const;
+    const allowedOverallStatuses = ['IN_PROCESS', 'SUCCESS', 'FAILED'] as const;
     const overallStatus =
       overallStatusNormalized &&
       allowedOverallStatuses.includes(

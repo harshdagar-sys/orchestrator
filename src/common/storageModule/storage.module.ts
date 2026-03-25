@@ -1,5 +1,5 @@
-import { Module } from "@nestjs/common";
-import { AzureBlobService } from "./azure-blob.service";
+import { Module } from '@nestjs/common';
+import { AzureBlobService } from './azure-blob.service';
 
 @Module({
   providers: [AzureBlobService],

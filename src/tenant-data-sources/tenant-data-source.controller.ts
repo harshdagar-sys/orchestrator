@@ -12,7 +12,8 @@ export class TenantDataSourceController {
   @ApiOperation({ summary: 'Get all data sources for a tenant' })
   findAllByTenant(@Headers() headers: Record<string, string>) {
     const tenantId = headers['x-tenant-id'];
-    if (!tenantId) throw new BadRequestException('tenantId is required in headers');
+    if (!tenantId)
+      throw new BadRequestException('tenantId is required in headers');
     return this.svc.findAllByTenant(tenantId);
   }
 
@@ -20,7 +21,8 @@ export class TenantDataSourceController {
   @ApiOperation({ summary: 'Get active data source for a tenant' })
   findActiveByTenant(@Headers() headers: Record<string, string>) {
     const tenantId = headers['x-tenant-id'];
-    if (!tenantId) throw new BadRequestException('tenantId is required in headers');
+    if (!tenantId)
+      throw new BadRequestException('tenantId is required in headers');
     return this.svc.findActiveByTenant(tenantId);
   }
 }

@@ -2,7 +2,11 @@
 import { Module } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { BullQueue } from './bullmq-queue';
-import { INGESTION_QUEUE, SCHEDULED_QUEUE, TRANSFORM_QUEUE } from './queues.tokens';
+import {
+  INGESTION_QUEUE,
+  SCHEDULED_QUEUE,
+  TRANSFORM_QUEUE,
+} from './queues.tokens';
 
 @Module({
   providers: [

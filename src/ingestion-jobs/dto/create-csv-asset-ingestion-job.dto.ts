@@ -22,4 +22,3 @@ export class CreateCsvAssetIngestionJobDto {
   @IsString()
   createdBy?: string;
 }
-

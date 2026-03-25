@@ -87,7 +87,10 @@ export class LogsService {
       blobServiceClient =
         BlobServiceClient.fromConnectionString(connectionString);
     } else if (accountName && accountKey) {
-      const credential = new StorageSharedKeyCredential(accountName, accountKey);
+      const credential = new StorageSharedKeyCredential(
+        accountName,
+        accountKey,
+      );
       blobServiceClient = new BlobServiceClient(
         `https://${accountName}.blob.core.windows.net`,
         credential,
@@ -109,4 +112,3 @@ export class LogsService {
     return Buffer.concat(chunks);
   }
 }
-

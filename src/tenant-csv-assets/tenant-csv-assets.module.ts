@@ -5,7 +5,7 @@ import { TenantCsvAssetsService } from './tenant-csv-assets.service';
 import { StorageModule } from 'src/common/storageModule/storage.module';
 
 @Module({
-  imports: [PrismaModule , StorageModule],
+  imports: [PrismaModule, StorageModule],
   controllers: [TenantCsvAssetsController],
   providers: [TenantCsvAssetsService],
   exports: [TenantCsvAssetsService],

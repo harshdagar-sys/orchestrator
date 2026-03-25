@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AppLogger } from './common/logger/app-logger.service';
 
@@ -18,22 +18,29 @@ async function bootstrap() {
     }),
   );
 
-  const config = new DocumentBuilder()
-    .setTitle('Ingestion Service')
-    .setDescription('API for ingestion jobs and runs')
-    .setVersion('1.0')
-    .addBearerAuth()
+  // Swagger setup at /swagger
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Orchestrator Service API')
+    .setDescription('API documentation for Orchestrator Service')
+    .setVersion('1.0.0')
     .build();
+  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('swagger', app, swaggerDocument);
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('swagger', app, document);
+  // ✅ Early health endpoint
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const server = app.getHttpAdapter().getInstance();
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return
+  server.get('/health', (req, res) => res.status(200).send('OK'));
 
   const port = Number(process.env.PORT || 8080);
+
   appLogger.log('Starting app...');
-  appLogger.log('PORT:', process.env.PORT);
+  appLogger.log(`PORT: ${process.env.PORT}`);
+
   await app.listen(port, '0.0.0.0');
 
-  appLogger.log(`Ingestion Service running on port ${port}`, 'Bootstrap');
+  appLogger.log(`App running on port ${port}`);
 }
 
 bootstrap().catch((err) => {

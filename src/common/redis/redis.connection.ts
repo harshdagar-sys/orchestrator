@@ -1,6 +1,7 @@
 import { ConnectionOptions } from 'bullmq';
 
-const redisUrl = process.env.REDIS_URL || `redis://:Welcome%402022@4.188.82.237:6379`;
+const redisUrl =
+  process.env.REDIS_URL || `redis://:Welcome%402022@4.188.82.237:6379`;
 
 if (!redisUrl) throw new Error('REDIS_URL is required');
 

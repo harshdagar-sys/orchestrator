@@ -40,7 +40,8 @@ export class IngestionJobsController {
     @Headers() headers: Record<string, string>,
   ) {
     const tenantId = headers['x-tenant-id'];
-    if (!tenantId) throw new BadRequestException('tenantId is required in headers');
+    if (!tenantId)
+      throw new BadRequestException('tenantId is required in headers');
     return this.svc.create(tenantId, dto);
   }
 
@@ -55,14 +56,14 @@ export class IngestionJobsController {
     @Headers() headers: Record<string, string>,
   ) {
     const tenantId = headers['x-tenant-id'];
-    if (!tenantId) throw new BadRequestException('tenantId is required in headers');
+    if (!tenantId)
+      throw new BadRequestException('tenantId is required in headers');
     return this.svc.createCsvAssetJob(tenantId, dto);
   }
 
   @Post('instant-api-sync')
   @ApiOperation({
-    summary:
-      'Create an instant one-time API ingestion job using dataSourceId',
+    summary: 'Create an instant one-time API ingestion job using dataSourceId',
   })
   @ApiBody({ type: CreateInstantApiSyncDto })
   createInstantApiSync(
@@ -80,20 +81,30 @@ export class IngestionJobsController {
   @ApiOperation({ summary: 'List ingestion jobs with pagination and filters' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'jobMode', required: false, enum: ['SCHEDULED', 'INSTANT'] })
-  @ApiQuery({ name: 'scheduleType', required: false, enum: ['CRON', 'ONE_TIME'] })
+  @ApiQuery({
+    name: 'jobMode',
+    required: false,
+    enum: ['SCHEDULED', 'INSTANT'],
+  })
+  @ApiQuery({
+    name: 'scheduleType',
+    required: false,
+    enum: ['CRON', 'ONE_TIME'],
+  })
   @ApiQuery({
     name: 'date',
     required: false,
     type: String,
-    description: 'UTC date filter (ISO), includes ONE_TIME scheduledAt and CRON occurrences on that day',
+    description:
+      'UTC date filter (ISO), includes ONE_TIME scheduledAt and CRON occurrences on that day',
   })
   findAll(
     @Query() q: ListIngestionJobsQuery,
     @Headers() headers: Record<string, string>,
   ) {
     const tenantId = headers['x-tenant-id'];
-    if (!tenantId) throw new BadRequestException('tenantId is required in headers');
+    if (!tenantId)
+      throw new BadRequestException('tenantId is required in headers');
     return this.svc.findAll(tenantId, q);
   }
 
@@ -104,7 +115,8 @@ export class IngestionJobsController {
   })
   getStats(@Headers() headers: Record<string, string>) {
     const tenantId = headers['x-tenant-id'];
-    if (!tenantId) throw new BadRequestException('tenantId is required in headers');
+    if (!tenantId)
+      throw new BadRequestException('tenantId is required in headers');
     return this.svc.getStats(tenantId);
   }
 
@@ -132,8 +144,7 @@ export class IngestionJobsController {
 
   @Post('update-status')
   @ApiOperation({
-    summary:
-      'Activate and deactivete ingestion job.',
+    summary: 'Activate and deactivete ingestion job.',
   })
   @ApiBody({ type: ActivateIngestionJobDto })
   activateJob(
@@ -141,7 +152,8 @@ export class IngestionJobsController {
     @Headers() headers: Record<string, string>,
   ) {
     const tenantId = headers['x-tenant-id'];
-    if (!tenantId) throw new BadRequestException('tenantId is required in headers');
+    if (!tenantId)
+      throw new BadRequestException('tenantId is required in headers');
     return this.svc.activateJob(tenantId, dto.jobId, dto.status);
   }
 }

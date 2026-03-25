@@ -15,7 +15,10 @@ export class AppLogger implements LoggerService {
       new winston.transports.Console({ level: logLevel }),
     ];
 
-    const azureTransport = this.buildAzureTransport(logLevel, azureBlobBaseName);
+    const azureTransport = this.buildAzureTransport(
+      logLevel,
+      azureBlobBaseName,
+    );
     if (azureTransport) transports.push(azureTransport);
 
     this.logger = winston.createLogger({
@@ -73,7 +76,10 @@ export class AppLogger implements LoggerService {
       });
     } catch (error) {
       // IMPORTANT: can't use this.logger yet
-      console.error('[LOGGER] Failed to initialize Azure Blob transport', error);
+      console.error(
+        '[LOGGER] Failed to initialize Azure Blob transport',
+        error,
+      );
       return null;
     }
   }

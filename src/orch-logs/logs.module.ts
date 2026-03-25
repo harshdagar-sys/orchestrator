@@ -7,4 +7,3 @@ import { LogsService } from './logs.service';
   providers: [LogsService],
 })
 export class LogsModule {}
-

@@ -27,9 +27,7 @@ export class SchedulerService {
     @Inject(INGESTION_QUEUE) private readonly queue: Queue,
     private readonly fetchWatcher: FetchCompleteWatcherService,
     private readonly logger: AppLogger,
-  ) { }
-
-
+  ) {}
 
   // @Cron('* * * * *') // every 1 minutes
   // async handleCronChunk() {
@@ -89,10 +87,7 @@ export class SchedulerService {
     const tickStart = Date.now();
     const now = new Date();
 
-    this.logger.log(
-      `Scheduler tick STARTED at ${now.toISOString()}`,
-      this.ctx,
-    );
+    this.logger.log(`Scheduler tick STARTED at ${now.toISOString()}`, this.ctx);
 
     const tasks = [
       {
@@ -197,8 +192,11 @@ export class SchedulerService {
 
       // 3) Decide if due
       if (job.scheduleType === ScheduleType.ONE_TIME) {
-        if (job.scheduledAt && job.scheduledAt <= now) due.push(job); 
-        this.logger.debug(`Job ${job.id} scheduled at ${job.scheduledAt} is not due yet, now=${now.toISOString()}`, this.ctx);
+        if (job.scheduledAt && job.scheduledAt <= now) due.push(job);
+        this.logger.debug(
+          `Job ${job.id} scheduled at ${job.scheduledAt} is not due yet, now=${now.toISOString()}`,
+          this.ctx,
+        );
         continue;
       }
 
@@ -212,7 +210,11 @@ export class SchedulerService {
           select: { startedAt: true, createdAt: true },
         });
 
-        const last = lastRun?.startedAt ?? lastRun?.createdAt ?? job.createdAt ?? new Date(0);
+        const last =
+          lastRun?.startedAt ??
+          lastRun?.createdAt ??
+          job.createdAt ??
+          new Date(0);
 
         // Check whether there exists at least one cron occurrence between last and now
         // We do: compute next occurrence after last, if <= now => due
@@ -226,7 +228,10 @@ export class SchedulerService {
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
 
-          this.logger.warn(`Invalid cron for job ${job.id}: ${message}`, this.ctx);
+          this.logger.warn(
+            `Invalid cron for job ${job.id}: ${message}`,
+            this.ctx,
+          );
         }
       }
     }
@@ -286,7 +291,10 @@ export class SchedulerService {
         attempts: 3,
         backoff: { type: 'exponential', delay: 2000 },
       });
-      this.logger.debug(`Enqueued job ${job.id} run ${run.id} of type ${payload.jobType} ${new Date().toISOString()}`, this.ctx);
+      this.logger.debug(
+        `Enqueued job ${job.id} run ${run.id} of type ${payload.jobType} ${new Date().toISOString()}`,
+        this.ctx,
+      );
 
       if (job.scheduleType === ScheduleType.ONE_TIME) {
         await this.prisma.ingestionJob.update({

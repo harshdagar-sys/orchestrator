@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../common/primsa/prisma.service';
 // import {
 //    uploadCsvToAzure,
@@ -28,18 +33,17 @@ const serializeAsset = (asset: any) => ({
   fileSizeBytes:
     typeof asset?.fileSizeBytes === 'bigint'
       ? asset.fileSizeBytes.toString()
-      : asset?.fileSizeBytes ?? null,
+      : (asset?.fileSizeBytes ?? null),
 });
 
 @Injectable()
 export class TenantCsvAssetsService {
-
- 
-private readonly ctx = TenantCsvAssetsService.name;
-  constructor(private readonly prisma: PrismaService,
-      private readonly azureBlob: AzureBlobService,
-      private readonly logger : AppLogger
-  ) { }
+  private readonly ctx = TenantCsvAssetsService.name;
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly azureBlob: AzureBlobService,
+    private readonly logger: AppLogger,
+  ) {}
 
   private normalizeHeaderName(value: string): string {
     return (value ?? '')
@@ -51,7 +55,10 @@ private readonly ctx = TenantCsvAssetsService.name;
       .toLowerCase();
   }
 
-  private countDelimiterOutsideQuotes(line: string, delimiter: CsvDelimiter): number {
+  private countDelimiterOutsideQuotes(
+    line: string,
+    delimiter: CsvDelimiter,
+  ): number {
     let inQuotes = false;
     let count = 0;
 
@@ -140,7 +147,10 @@ private readonly ctx = TenantCsvAssetsService.name;
 
       const delimiter = this.detectDelimiter(cleanLine);
       const cols = this.splitCsvLine(cleanLine, delimiter).map((c) =>
-        c.replace(/^\uFEFF/, '').trim().replace(/^"|"$/g, ''),
+        c
+          .replace(/^\uFEFF/, '')
+          .trim()
+          .replace(/^"|"$/g, ''),
       );
 
       const normalizedColsSet = new Set(
@@ -159,7 +169,10 @@ private readonly ctx = TenantCsvAssetsService.name;
         bestMatch = { cols, score };
       }
 
-      if (normalizedRequiredSet.size > 0 && score === normalizedRequiredSet.size) {
+      if (
+        normalizedRequiredSet.size > 0 &&
+        score === normalizedRequiredSet.size
+      ) {
         break;
       }
     }
@@ -184,7 +197,8 @@ private readonly ctx = TenantCsvAssetsService.name;
     );
 
     const missing = requiredColumns.filter(
-      (required) => !normalizedHeaderSet.has(this.normalizeHeaderName(required)),
+      (required) =>
+        !normalizedHeaderSet.has(this.normalizeHeaderName(required)),
     );
 
     if (missing.length > 0) {
@@ -195,10 +209,7 @@ private readonly ctx = TenantCsvAssetsService.name;
     }
   }
 
-  async uploadCsv(
-    tenantId: string,
-    file: UploadedCsvFile,
-  ) {
+  async uploadCsv(tenantId: string, file: UploadedCsvFile) {
     const allowedMimeTypes = ['text/csv', 'application/vnd.ms-excel'];
     if (!file) {
       throw new BadRequestException('file is required');
@@ -334,7 +345,9 @@ private readonly ctx = TenantCsvAssetsService.name;
           where: { csvMappingId: mapping.id },
         });
         if (!mappingColumns || mappingColumns.length === 0) {
-          throw new BadRequestException('CSV mapping has no configured columns');
+          throw new BadRequestException(
+            'CSV mapping has no configured columns',
+          );
         }
         const requiredColumns = mappingColumns
           .filter((c) => c.isRequired)
@@ -447,7 +460,10 @@ private readonly ctx = TenantCsvAssetsService.name;
 
     const stream = await this.azureBlob.downloadCsv(asset.fileUuid);
     if (!stream) {
-      this.logger.error(`CSV file not found in Azure for asset ${asset.id}` , this.ctx);
+      this.logger.error(
+        `CSV file not found in Azure for asset ${asset.id}`,
+        this.ctx,
+      );
       throw new NotFoundException('CSV file not found in Azure');
     }
 

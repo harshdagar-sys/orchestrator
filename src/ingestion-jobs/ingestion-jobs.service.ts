@@ -29,12 +29,9 @@ export class IngestionJobsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly logger: AppLogger,
-  ) { }
+  ) {}
 
-  async createInstantApiSync(
-    tenantId: string,
-    dto: CreateInstantApiSyncDto,
-  ) {
+  async createInstantApiSync(tenantId: string, dto: CreateInstantApiSyncDto) {
     const dataSource = await this.prisma.tenantDataSource.findUnique({
       where: { id: dto.dataSourceId },
       select: { id: true, tenantId: true, enabled: true },
@@ -143,11 +140,12 @@ export class IngestionJobsService {
             createdBy: dto.createdBy ?? null,
           },
         });
-      }
-      else if (dto.jobType === ScheduleType.ONE_TIME) {
+      } else if (dto.jobType === ScheduleType.ONE_TIME) {
         // scheduleType = ScheduleType.ONE_TIME;
         if (!dto.scheduledAt) {
-          throw new BadRequestException('scheduledAt is required for ONE_TIME job');
+          throw new BadRequestException(
+            'scheduledAt is required for ONE_TIME job',
+          );
         }
 
         return this.prisma.ingestionJob.create({
@@ -168,8 +166,7 @@ export class IngestionJobsService {
           },
         });
       }
-    }
-    catch (error) {
+    } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(
         `create failed: ${message}`,
@@ -180,120 +177,138 @@ export class IngestionJobsService {
     }
   }
 
-async findAll(tenantId: string, q: ListIngestionJobsQuery) {
-  try {
-    const page = q.page ?? 1;
-    const limit = q.limit ?? 20;
-    const skip = (page - 1) * limit;
+  async findAll(tenantId: string, q: ListIngestionJobsQuery) {
+    try {
+      const page = q.page ?? 1;
+      const limit = q.limit ?? 20;
+      const skip = (page - 1) * limit;
 
-    let dateFilter: Prisma.IngestionJobWhereInput = {};
+      let dateFilter: Prisma.IngestionJobWhereInput = {};
 
-    if (q.date) {
-      const targetDate = new Date(q.date);
-      if (Number.isNaN(targetDate.getTime())) {
-        throw new BadRequestException('date must be a valid ISO date');
+      if (q.date) {
+        const targetDate = new Date(q.date);
+        if (Number.isNaN(targetDate.getTime())) {
+          throw new BadRequestException('date must be a valid ISO date');
+        }
+
+        const startOfDayUtc = new Date(
+          Date.UTC(
+            targetDate.getUTCFullYear(),
+            targetDate.getUTCMonth(),
+            targetDate.getUTCDate(),
+            0,
+            0,
+            0,
+            0,
+          ),
+        );
+
+        const endOfDayUtc = new Date(startOfDayUtc);
+        endOfDayUtc.setUTCDate(endOfDayUtc.getUTCDate() + 1);
+
+        dateFilter = {
+          OR: [
+            {
+              scheduleType: 'ONE_TIME',
+              scheduledAt: {
+                gte: startOfDayUtc,
+                lt: endOfDayUtc,
+              },
+            },
+            {
+              scheduleType: 'CRON',
+            },
+          ],
+        };
       }
 
-      const startOfDayUtc = new Date(Date.UTC(
-        targetDate.getUTCFullYear(),
-        targetDate.getUTCMonth(),
-        targetDate.getUTCDate(),
-        0, 0, 0, 0
-      ));
-
-      const endOfDayUtc = new Date(startOfDayUtc);
-      endOfDayUtc.setUTCDate(endOfDayUtc.getUTCDate() + 1);
-
-      dateFilter = {
-        OR: [
-          {
-            scheduleType: 'ONE_TIME',
-            scheduledAt: {
-              gte: startOfDayUtc,
-              lt: endOfDayUtc,
-            },
-          },
-          {
-            scheduleType: 'CRON',
-          },
-        ],
+      const where: Prisma.IngestionJobWhereInput = {
+        ...(tenantId && { tenantId }),
+        ...(q.jobMode && { jobMode: q.jobMode }),
+        ...(q.scheduleType && { scheduleType: q.scheduleType }),
+        ...dateFilter,
       };
-    }
 
-    const where: Prisma.IngestionJobWhereInput = {
-      ...(tenantId && { tenantId }),
-      ...(q.jobMode && { jobMode: q.jobMode }),
-      ...(q.scheduleType && { scheduleType: q.scheduleType }),
-      ...dateFilter,
-    };
-
-    const [jobs, total] = await Promise.all([
-      this.prisma.ingestionJob.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
-        include: {
-          runs: {
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-            select: {
-              id: true,
-              status: true,
-              createdAt: true,
-              startedAt: true,
-              finishedAt: true,
-              errorMessage: true,
+      const [jobs, total] = await Promise.all([
+        this.prisma.ingestionJob.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit,
+          include: {
+            runs: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: {
+                id: true,
+                status: true,
+                createdAt: true,
+                startedAt: true,
+                finishedAt: true,
+                errorMessage: true,
+              },
             },
           },
-        },
-      }),
-      this.prisma.ingestionJob.count({ where }),
-    ]);
+        }),
+        this.prisma.ingestionJob.count({ where }),
+      ]);
 
-    // Extra filtering ONLY for CRON jobs
-    let finalJobs = jobs;
-    if (q.date) {
-      const targetDate = new Date(q.date);
+      // Extra filtering ONLY for CRON jobs
+      let finalJobs = jobs;
+      if (q.date) {
+        const targetDate = new Date(q.date);
 
-      const startOfDayUtc = new Date(Date.UTC(
-        targetDate.getUTCFullYear(),
-        targetDate.getUTCMonth(),
-        targetDate.getUTCDate(),
-        0, 0, 0, 0
-      ));
+        const startOfDayUtc = new Date(
+          Date.UTC(
+            targetDate.getUTCFullYear(),
+            targetDate.getUTCMonth(),
+            targetDate.getUTCDate(),
+            0,
+            0,
+            0,
+            0,
+          ),
+        );
 
-      const endOfDayUtc = new Date(startOfDayUtc);
-      endOfDayUtc.setUTCDate(endOfDayUtc.getUTCDate() + 1);
+        const endOfDayUtc = new Date(startOfDayUtc);
+        endOfDayUtc.setUTCDate(endOfDayUtc.getUTCDate() + 1);
 
-      finalJobs = jobs.filter(job => {
-        if (job.scheduleType === 'CRON' && job.cronExpression) {
-          return this.hasCronOccurrenceOnDate(
-            job.cronExpression,
-            startOfDayUtc,
-            endOfDayUtc,
-          );
-        }
-        return true; // ONE_TIME already filtered in DB
-      });
+        finalJobs = jobs.filter((job) => {
+          if (job.scheduleType === 'CRON' && job.cronExpression) {
+            return this.hasCronOccurrenceOnDate(
+              job.cronExpression,
+              startOfDayUtc,
+              endOfDayUtc,
+            );
+          }
+          return true; // ONE_TIME already filtered in DB
+        });
+      }
+
+      const items = finalJobs.map((job) => ({
+        ...job,
+        schedule:
+          job.scheduleType === 'CRON' && job.cronExpression
+            ? parseCronToSchedule(job.cronExpression)
+            : null,
+      }));
+
+      return {
+        page,
+        limit,
+        total,
+        items,
+      };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(
+        `findAll failed: ${message}`,
+        err instanceof Error ? err.stack : undefined,
+        this.ctx,
+      );
+      throw err;
     }
-
-    return {
-      page,
-      limit,
-      total,
-      items: finalJobs,
-    };
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    this.logger.error(
-      `findAll failed: ${message}`,
-      err instanceof Error ? err.stack : undefined,
-      this.ctx,
-    );
-    throw err;
   }
-}
 
   private hasCronOccurrenceOnDate(
     cronExpression: string,
@@ -328,54 +343,53 @@ async findAll(tenantId: string, q: ListIngestionJobsQuery) {
       completedCount,
       lastCompletedRun,
       scheduledJobs,
-    ] =
-      await this.prisma.$transaction([
-        this.prisma.ingestionJob.count({
-          where: { tenantId, status: 'ACTIVE' },
-        }),
-        this.prisma.ingestionJob.count({
-          where: { tenantId, status: 'DEACTIVATED' },
-        }),
-        this.prisma.ingestionJob.count({
-          where: { tenantId, status: 'COMPLETED' },
-        }),
-        this.prisma.ingestionJobRun.findFirst({
-          where: {
-            status: 'COMPLETED',
-            job: { tenantId },
-          },
-          orderBy: { createdAt: 'desc' },
-          select: {
-            id: true,
-            status: true,
-            runType: true,
-            createdAt: true,
-            finishedAt: true,
-            syncFinishedAt: true,
-            job: {
-              select: {
-                id: true,
-                jobType: true,
-              },
+    ] = await this.prisma.$transaction([
+      this.prisma.ingestionJob.count({
+        where: { tenantId, status: 'ACTIVE' },
+      }),
+      this.prisma.ingestionJob.count({
+        where: { tenantId, status: 'DEACTIVATED' },
+      }),
+      this.prisma.ingestionJob.count({
+        where: { tenantId, status: 'COMPLETED' },
+      }),
+      this.prisma.ingestionJobRun.findFirst({
+        where: {
+          status: 'COMPLETED',
+          job: { tenantId },
+        },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          status: true,
+          runType: true,
+          createdAt: true,
+          finishedAt: true,
+          syncFinishedAt: true,
+          job: {
+            select: {
+              id: true,
+              jobType: true,
             },
           },
-        }),
-        this.prisma.ingestionJob.findMany({
-          where: {
-            tenantId,
-            status: 'ACTIVE',
-            isActive: true,
-            jobMode: 'SCHEDULED',
-          },
-          select: {
-            id: true,
-            jobType: true,
-            scheduleType: true,
-            scheduledAt: true,
-            cronExpression: true,
-          },
-        }),
-      ]);
+        },
+      }),
+      this.prisma.ingestionJob.findMany({
+        where: {
+          tenantId,
+          status: 'ACTIVE',
+          isActive: true,
+          jobMode: 'SCHEDULED',
+        },
+        select: {
+          id: true,
+          jobType: true,
+          scheduleType: true,
+          scheduledAt: true,
+          cronExpression: true,
+        },
+      }),
+    ]);
 
     const nextCandidates: Array<{
       jobId: string;
@@ -385,7 +399,11 @@ async findAll(tenantId: string, q: ListIngestionJobsQuery) {
     }> = [];
 
     for (const job of scheduledJobs) {
-      if (job.scheduleType === 'ONE_TIME' && job.scheduledAt && job.scheduledAt > now) {
+      if (
+        job.scheduleType === 'ONE_TIME' &&
+        job.scheduledAt &&
+        job.scheduledAt > now
+      ) {
         nextCandidates.push({
           jobId: job.id,
           type: job.jobType,
@@ -409,7 +427,10 @@ async findAll(tenantId: string, q: ListIngestionJobsQuery) {
           });
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
-          this.logger.warn(`Invalid cron for job ${job.id}: ${message}`, this.ctx);
+          this.logger.warn(
+            `Invalid cron for job ${job.id}: ${message}`,
+            this.ctx,
+          );
         }
       }
     }
@@ -475,14 +496,21 @@ async findAll(tenantId: string, q: ListIngestionJobsQuery) {
   }
 
   async activateJob(tenantId: string, jobId: string, status: Status) {
-    const job = await this.prisma.ingestionJob.findUnique({ where: { id: jobId } });
+    const job = await this.prisma.ingestionJob.findUnique({
+      where: { id: jobId },
+    });
     if (!job) throw new NotFoundException('IngestionJob not found');
     if (job.tenantId !== tenantId) {
-      throw new BadRequestException('IngestionJob does not belong to the specified tenant');
+      throw new BadRequestException(
+        'IngestionJob does not belong to the specified tenant',
+      );
     }
     return this.prisma.ingestionJob.update({
       where: { id: jobId },
-      data: { status: status === Status.ACTIVE ? 'ACTIVE' : 'DEACTIVATED', isActive: status === Status.ACTIVE? true : false },
+      data: {
+        status: status === Status.ACTIVE ? 'ACTIVE' : 'DEACTIVATED',
+        isActive: status === Status.ACTIVE ? true : false,
+      },
     });
   }
 }

@@ -37,7 +37,7 @@ type UploadedCsvFile = {
 @ApiHeader({ name: 'x-tenant-id', required: true, description: 'Tenant ID' })
 @Controller('tenant-csv-assets')
 export class TenantCsvAssetsController {
-  constructor(private readonly svc: TenantCsvAssetsService) { }
+  constructor(private readonly svc: TenantCsvAssetsService) {}
 
   @Post('upload')
   @ApiOperation({ summary: 'Upload CSV to Azure and create asset record' })
@@ -57,7 +57,8 @@ export class TenantCsvAssetsController {
     @Headers() headers: Record<string, string>,
   ) {
     const tenantId = headers['x-tenant-id'];
-    if (!tenantId) throw new BadRequestException('tenantId is required in headers');
+    if (!tenantId)
+      throw new BadRequestException('tenantId is required in headers');
     return this.svc.uploadCsv(tenantId, file);
   }
 
@@ -95,7 +96,8 @@ export class TenantCsvAssetsController {
     @Query() q: ListTenantCsvAssetsQuery,
   ) {
     const tenantId = headers['x-tenant-id'];
-    if (!tenantId) throw new BadRequestException('tenantId is required in headers');
+    if (!tenantId)
+      throw new BadRequestException('tenantId is required in headers');
     return this.svc.findAllByTenant(tenantId, q);
   }
 

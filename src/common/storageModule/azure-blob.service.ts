@@ -18,14 +18,12 @@ export class AzureBlobService {
       throw new Error('Azure env variables are missing');
     }
 
-    const connectionString =
-      `DefaultEndpointsProtocol=https;AccountName=${account};AccountKey=${key};EndpointSuffix=core.windows.net`;
+    const connectionString = `DefaultEndpointsProtocol=https;AccountName=${account};AccountKey=${key};EndpointSuffix=core.windows.net`;
 
     const blobServiceClient =
       BlobServiceClient.fromConnectionString(connectionString);
 
-    const containerClient =
-      blobServiceClient.getContainerClient(containerName);
+    const containerClient = blobServiceClient.getContainerClient(containerName);
 
     return { containerClient };
   }
@@ -34,8 +32,7 @@ export class AzureBlobService {
     const { containerClient } = this.getClient();
     await containerClient.createIfNotExists();
 
-    const blockBlobClient =
-      containerClient.getBlockBlobClient(fileName);
+    const blockBlobClient = containerClient.getBlockBlobClient(fileName);
 
     const response = await blockBlobClient.uploadData(data, {
       blobHTTPHeaders: { blobContentType: 'text/csv' },
@@ -52,8 +49,7 @@ export class AzureBlobService {
 
   async downloadCsv(fileName: string): Promise<Readable | undefined> {
     const { containerClient } = this.getClient();
-    const blockBlobClient =
-      containerClient.getBlockBlobClient(fileName);
+    const blockBlobClient = containerClient.getBlockBlobClient(fileName);
 
     try {
       const response = await blockBlobClient.download(0);
@@ -77,8 +73,7 @@ export class AzureBlobService {
 
   async deleteCsv(fileName: string): Promise<void> {
     const { containerClient } = this.getClient();
-    const blockBlobClient =
-      containerClient.getBlockBlobClient(fileName);
+    const blockBlobClient = containerClient.getBlockBlobClient(fileName);
 
     try {
       await blockBlobClient.deleteIfExists();
